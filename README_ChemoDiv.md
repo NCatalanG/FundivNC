@@ -1,25 +1,117 @@
 Initially I will  add some functions on alpha and beta diversity based on vegan
 ======================================
-
+```{r}
+require (vegan)
+require (BiodiversityR)
+```
+Vegan-based shannon
 ```{r}
 data (BCI)#tree counts in Colorado Island
-R <- specnumber(BCI, margin=1) #number of species
-R <- specnumber(BCI, margin=2) #frequency of species 
 H <- diversity(BCI, index="shannon") #Shannon index
-S <- diversity(BCI, index="simpson") #Shannon index
+simp <- diversity(BCI, index="simpson") #Simpson index
+isimp <- diversity(BCI, index= "inv") #inverse Simpson
+## Unbiased Simpson (Hurlbert 1971, eq. 5) with rarefy:
+unbias.simp <- rarefy(BCI, 2) - 1
 
-J <- H/log(specnumber(BCI))#Pielou's Eveness (included in Eve)
+## Fisher alpha
+alpha <- fisher.alpha(BCI)
+## Plot all
+pairs(cbind(H, simp, isimp, unbias.simp, alpha), pch="+", col="blue")
 ```
-Eveness indices from fundiv:
+Richness and rarefaction:
+Species richness increases with sample size, and differences in richness actually may be caused by differences in sample size.To solve this problem, we may try to rarefy species richness to the same number of individuals.
 ```{r}
-eve1 <- Eve(A = BCI)
-eve2 <- Eve(A = dummy$abun, scales = c(0.25,0.5,2,4,8,Inf))
-pairs(eve1)
-pairs(eve2)
+quantile(rowSums(BCI))
+S <- specnumber(BCI) #number of species
+fS <- specnumber(BCI, margin=2) #frequency of species 
+
+Srar <- rarefy(BCI, min(rowSums(BCI)))#richness for the same number of individuals
+plot(S,Srar, xlab = "Observed No. of Species", ylab = "Rarefied No. of Species")
+abline(0, 1)
+(raremax <- min(rowSums(BCI)))
+rarecurve(BCI, step = 20, sample = raremax, col = "blue", cex = 0.6)
+
 ```
 
+Species abundance and Eveness indices:
+```{r}
+J <- H/log(specnumber(BCI))#Pielou's Eveness (included in Eve)
+eve1 <- Eve(A = BCI) #from fundiv. Ea= 
+#eve2 <- Eve(A = dummy$abun, scales = c(0.25,0.5,2,4,8,Inf))
+pairs(eve1)
+#pairs(eve2)
+
+#for a more specific look into Renyi diversities:
+k <- sample(nrow(BCI), 6)
+R <- renyi(BCI[k,])
+plot(R)
+
+#expected number of species with n individuals (Fisher)
+k <- sample(nrow(BCI), 1)
+fish <- fisherfit(BCI[k,])
+fish
+plot(prestondistr(BCI[k,]))#alternative to the lognormal model
+
+#ranked abundances:
+rad <- radfit(BCI[k,])
+rad
+
+```
+Beta diversity and accumulation
+Species accumulation models are similar to rarefaction: they study the accumulation of species when the number of sites increases.
+Beta diversity defined as gamma/alpha - 1:
+```{r}
+beta<-ncol(BCI)/mean(specnumber(BCI)) - 1
+
+#Sorensen index(distance)
+beta <- vegdist(BCI, binary=TRUE)
+mean(beta)
+#other indices:
+betadiver(help=TRUE)
+#Function betadisper can be used to analyse beta diversities with respect to classes or factors
+data(dune)
+data(dune.env)
+z <- betadiver(dune, "z")
+mod <- with(dune.env, betadisper(z, Management))
+mod
+
+#accumulation
+sac <- specaccum(BCI)
+plot(sac, ci.type="polygon", ci.col="yellow")
+
+```
+
+Total species pool (unknown  number of species  in the community):
+```{r}
+specpool(BCI)#with a collection of sites
+
+estimateR(BCI[k,])#number of unseen species for each single site.These
+functions need counts of individuals, and species seen only once or twice, or other rare species, take the place of species with low frequencies.
+veiledspec(BCI[k,])
+
+#which unseen species might be where?it has been suggested as a method of estimating which of the missing species could occur in a site, or which sites are suitable for a species. The probability for each species at each site is assessed from other species occurring on the site.
+smo <- beals(BCI)
+j <- which(colnames(BCI) == "Ceiba.pentandra")
+plot(beals(BCI, species=j, include=FALSE), BCI[,j],
+ylab="Occurrence", main="Ceiba pentandra",
+xlab="Probability of occurrence")
+```
+Taxonomic diversity using compound categories as e.g. genus.Maybe that is conceptually more correct?
+````{r}
+data(dune)
+data(dune.taxon)
+taxdis <- taxa2dist(dune.taxon, varstep=TRUE)
+mod <- taxondive(dune, taxdis)
+plot(mod)
+```
 fundiv: analyzing functional trait diversity
 ========================================================
+This we maybe can apply with compounds that we know whether degrade or no, whether are photoreactive or not, etc.
+````{r}
+tr <- hclust(taxdis, "aver")
+mod <- treedive(dune, tr)#implements functional diversity defined as the total branch length in a trait dendrogram connecting all species, but excluding the unnecessary root segments of the tree
+
+```
 
 This is a wrapper to Petchey and Gaston FD indexes and Laliberte FD package. Hence most code is borrowed from them. It has some additions, most notably the dendogram measures can also be weighted by abundance as implemented in Gagic, Bartomeus et al. (2015 Proc B http://rspb.royalsocietypublishing.org/content/282/1801/20142620 ). There is also a function to calculate several Evennes indexes.
 
