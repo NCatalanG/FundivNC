@@ -3,11 +3,16 @@ Initially I will  add some functions on alpha and beta diversity based on vegan
 
 ```{r}
 data (BCI)#tree counts in Colorado Island
-H <- diversity(BCI) #Shannon index
+R <- specnumber(BCI, margin=1) #number of species
+R <- specnumber(BCI, margin=2) #frequency of species 
+H <- diversity(BCI, index="shannon") #Shannon index
+S <- diversity(BCI, index="simpson") #Shannon index
+
+J <- H/log(specnumber(BCI))#Pielou's Eveness (included in Eve)
 ```
 Eveness indices from fundiv:
 ```{r}
-eve1 <- Eve(A = dummy$abun)
+eve1 <- Eve(A = BCI)
 eve2 <- Eve(A = dummy$abun, scales = c(0.25,0.5,2,4,8,Inf))
 pairs(eve1)
 pairs(eve2)
